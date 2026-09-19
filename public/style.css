@@ -265,6 +265,129 @@ td.actions {
   font-size: 11px;
 }
 
+.chip {
+  display: inline-block;
+  padding: 1px 8px;
+  margin: 1px 4px 1px 0;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #f9fafc;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.dim {
+  color: var(--ink-soft);
+  font-size: 12px;
+}
+
+td.wrap {
+  white-space: normal;
+}
+
+.sub-head {
+  margin: 18px 0 8px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.dir-block {
+  margin-bottom: 12px;
+  padding: 10px 12px 12px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+}
+
+.dir-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 14px;
+  margin-bottom: 8px;
+}
+
+.dir-name {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.dir-meta {
+  color: var(--ink-soft);
+  font-size: 12px;
+}
+
+table.dir-grid {
+  min-width: 720px;
+}
+
+.conflict-item {
+  margin-bottom: 8px;
+  padding: 8px 12px;
+  border: 1px solid var(--warn-line);
+  border-radius: 6px;
+  background: #fffdf7;
+  font-size: 12.5px;
+}
+
+.conflict-item ul {
+  margin: 6px 0 0;
+  padding-left: 20px;
+}
+
+.conflict-item code {
+  padding: 0 4px;
+  border-radius: 3px;
+  background: #f2f4f7;
+  font-family: Consolas, "Courier New", monospace;
+  font-size: 12px;
+}
+
+.verdict {
+  margin-top: 4px;
+  color: #8a5a00;
+}
+
+.picker-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.picker-title {
+  color: var(--ink-soft);
+  font-size: 12px;
+}
+
+.member-picker {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-width: 720px;
+  max-height: 180px;
+  overflow: auto;
+  padding: 6px 10px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: #fff;
+}
+
+.picker-item {
+  flex-direction: row;
+  align-items: center;
+  gap: 6px;
+  color: var(--ink);
+  font-size: 12.5px;
+}
+
+.picker-wrap.invalid .picker-title {
+  color: var(--danger);
+}
+
+.picker-wrap.invalid .member-picker {
+  border-color: var(--danger);
+  background: #fdf3f3;
+}
+
 .lv-error {
   background: #fdeeee;
   color: var(--danger);

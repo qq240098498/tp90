@@ -14,9 +14,13 @@ const MAX_PATTERN_LENGTH = 60;
 const MAX_NOTE_LENGTH = 200;
 const MAX_PATH_LENGTH = 120;
 const MAX_CONTENT_LENGTH = 4000;
+const MAX_SET_NAME_LENGTH = 40;
+const MAX_PREFIX_LENGTH = 120;
+const MAX_PREFIX_COUNT = 20;
 
-// 检查规则的初始数据。十二条规则里有两条是停用的，
-// 有一条启用的规则在现有文件里一条命中都没有，用来观察从未命中的规则
+// 检查规则的初始数据。十三条规则里有两条是停用的，
+// 有一条启用的规则在现有文件里一条命中都没有，用来观察从未命中的规则；
+// CODE-013 的写法把 CODE-005 的写法整个含住，用来观察同一段文字被两条级别不同的规则盯上的情形
 function seedRules() {
   const at = '2026-09-02T02:00:00.000Z';
   return [
@@ -32,6 +36,7 @@ function seedRules() {
     { id: 'rule-1010', code: 'CODE-010', name: '遗留注释要清理', level: '提示', status: '停用', fileType: '全部', pattern: 'FIXME', note: '', createdAt: at, updatedAt: at },
     { id: 'rule-1011', code: 'CODE-011', name: '脚本里禁止直接用强制删除', level: '警告', status: '启用', fileType: 'sh', pattern: 'rm -rf', note: '脚本里改用受控的清理命令', createdAt: at, updatedAt: at },
     { id: 'rule-1012', code: 'CODE-012', name: '文档里的临时占位要删掉', level: '提示', status: '启用', fileType: 'md', pattern: '待补', note: '', createdAt: at, updatedAt: at },
+    { id: 'rule-1013', code: 'CODE-013', name: '口令字样要收口', level: '警告', status: '启用', fileType: '全部', pattern: 'password', note: '出现口令字样就要再看一眼', createdAt: at, updatedAt: at },
   ];
 }
 
@@ -295,6 +300,20 @@ function seedFiles() {
   ];
 }
 
+// 规则集的初始数据。四个集子刻意留出几种值得盯的情形：
+// CODE-003 同时落在 SET-001 与 SET-003 且范围重叠，CODE-004 同时落在 SET-002 与 SET-003 且范围重叠；
+// SET-003 的 src 把 SET-001、SET-002 的范围整个包住；config 目录没有任何集子覆盖；
+// CODE-007 不进任何集子，用来观察没归组的规则
+function seedRuleSets() {
+  const at = '2026-09-02T04:00:00.000Z';
+  return [
+    { id: 'set-3001', code: 'SET-001', name: '前端页面检查', dirPrefixes: ['src/web'], ruleIds: ['rule-1001', 'rule-1002', 'rule-1003', 'rule-1006'], note: '页面代码的几条老规矩', createdAt: at, updatedAt: at },
+    { id: 'set-3002', code: 'SET-002', name: '服务端检查', dirPrefixes: ['src/server', 'src/config'], ruleIds: ['rule-1001', 'rule-1002', 'rule-1004', 'rule-1005', 'rule-1008', 'rule-1009', 'rule-1013'], note: '', createdAt: at, updatedAt: at },
+    { id: 'set-3003', code: 'SET-003', name: '全仓通用', dirPrefixes: ['src'], ruleIds: ['rule-1003', 'rule-1004', 'rule-1010'], note: 'src 底下都按这几条来', createdAt: at, updatedAt: at },
+    { id: 'set-3004', code: 'SET-004', name: '脚本与文档', dirPrefixes: ['scripts', 'docs'], ruleIds: ['rule-1003', 'rule-1011', 'rule-1012'], note: '', createdAt: at, updatedAt: at },
+  ];
+}
+
 // 把单条规则整理成固定结构，级别与状态不认识的一律回到默认值
 function normalizeRule(item, fallbackIndex) {
   const source = item && typeof item === 'object' ? item : {};
@@ -335,10 +354,46 @@ function normalizeFile(item, fallbackIndex) {
   };
 }
 
-// 整份数据保证规则与文件结构一致，缺编号、缺名称、缺路径的条目一律丢掉
+// 目录前缀统一收成干净的形式：去掉首尾空白与开头、结尾的斜线
+function cleanPrefix(value) {
+  if (typeof value !== 'string') return '';
+  return value.trim().replace(/^\/+/, '').replace(/\/+$/, '');
+}
+
+// 把单个规则集整理成固定结构，前缀逐个清理去重，成员只留文本编号
+function normalizeRuleSet(item, fallbackIndex) {
+  const source = item && typeof item === 'object' ? item : {};
+  const createdAt = typeof source.createdAt === 'string' && source.createdAt ? source.createdAt : new Date().toISOString();
+  const dirPrefixes = [];
+  if (Array.isArray(source.dirPrefixes)) {
+    source.dirPrefixes.forEach((raw) => {
+      const prefix = cleanPrefix(raw);
+      if (prefix && !dirPrefixes.includes(prefix)) dirPrefixes.push(prefix);
+    });
+  }
+  const ruleIds = [];
+  if (Array.isArray(source.ruleIds)) {
+    source.ruleIds.forEach((raw) => {
+      if (typeof raw === 'string' && raw && !ruleIds.includes(raw)) ruleIds.push(raw);
+    });
+  }
+  return {
+    id: typeof source.id === 'string' && source.id ? source.id : `set-restored-${fallbackIndex + 1}`,
+    code: typeof source.code === 'string' ? source.code.trim() : '',
+    name: typeof source.name === 'string' ? source.name.trim() : '',
+    dirPrefixes,
+    ruleIds,
+    note: typeof source.note === 'string' ? source.note : '',
+    createdAt,
+    updatedAt: typeof source.updatedAt === 'string' && source.updatedAt ? source.updatedAt : createdAt,
+  };
+}
+
+// 整份数据保证规则、文件与规则集结构一致，缺编号、缺名称、缺路径的条目一律丢掉；
+// 规则集里指向已不存在规则的成员编号也一并摘掉
 function normalize(raw) {
   const source = raw && typeof raw === 'object' ? raw : {};
-  const seed = { rules: seedRules(), files: seedFiles() };
+  const seed = { rules: seedRules(), files: seedFiles(), ruleSets: seedRuleSets() };
 
   const rawRules = Array.isArray(source.rules) ? source.rules : seed.rules;
   const seenRuleIds = new Set();
@@ -368,7 +423,23 @@ function normalize(raw) {
     files.push(file);
   });
 
-  return { rules, files };
+  const validRuleIds = new Set(rules.map((item) => item.id));
+  const rawSets = Array.isArray(source.ruleSets) ? source.ruleSets : seed.ruleSets;
+  const seenSetIds = new Set();
+  const seenSetCodes = new Set();
+  const ruleSets = [];
+  rawSets.forEach((item, index) => {
+    const set = normalizeRuleSet(item, index);
+    if (!set.id || !set.code || !set.name || set.dirPrefixes.length === 0) return;
+    const lower = set.code.toLowerCase();
+    if (seenSetIds.has(set.id) || seenSetCodes.has(lower)) return;
+    seenSetIds.add(set.id);
+    seenSetCodes.add(lower);
+    set.ruleIds = set.ruleIds.filter((id) => validRuleIds.has(id));
+    ruleSets.push(set);
+  });
+
+  return { rules, files, ruleSets };
 }
 
 // 读取数据文件：文件缺失或内容损坏时回落到初始数据并立刻补写
@@ -377,7 +448,7 @@ function load() {
     const raw = fs.readFileSync(DATA_FILE, 'utf8');
     return normalize(JSON.parse(raw));
   } catch (err) {
-    const data = { rules: seedRules(), files: seedFiles() };
+    const data = { rules: seedRules(), files: seedFiles(), ruleSets: seedRuleSets() };
     save(data);
     return data;
   }
@@ -396,9 +467,12 @@ module.exports = {
   save,
   seedRules,
   seedFiles,
+  seedRuleSets,
   normalize,
   normalizeRule,
   normalizeFile,
+  normalizeRuleSet,
+  cleanPrefix,
   LEVELS,
   STATUSES,
   FILE_TYPES,
@@ -408,5 +482,8 @@ module.exports = {
   MAX_NOTE_LENGTH,
   MAX_PATH_LENGTH,
   MAX_CONTENT_LENGTH,
+  MAX_SET_NAME_LENGTH,
+  MAX_PREFIX_LENGTH,
+  MAX_PREFIX_COUNT,
   DATA_FILE,
 };

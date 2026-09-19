@@ -54,6 +54,49 @@ app.delete('/api/rules/:id', (req, res) => {
   }
 });
 
+app.get('/api/rule-sets', (req, res) => {
+  res.json(api.listRuleSets({
+    keyword: api.readQuery(req.query, 'keyword'),
+  }));
+});
+
+app.post('/api/rule-sets', (req, res) => {
+  try {
+    res.status(201).json(api.createRuleSet(req.body));
+  } catch (err) {
+    sendError(res, err);
+  }
+});
+
+app.get('/api/rule-sets/:id', (req, res) => {
+  try {
+    res.json(api.getRuleSet(req.params.id));
+  } catch (err) {
+    sendError(res, err);
+  }
+});
+
+app.patch('/api/rule-sets/:id', (req, res) => {
+  try {
+    res.json(api.updateRuleSet(req.params.id, req.body));
+  } catch (err) {
+    sendError(res, err);
+  }
+});
+
+app.delete('/api/rule-sets/:id', (req, res) => {
+  try {
+    res.json(api.deleteRuleSet(req.params.id));
+  } catch (err) {
+    sendError(res, err);
+  }
+});
+
+// 目录生效一览与范围冲突判断：按收录文件的目录算出生效规则、未覆盖目录与三类重叠
+app.get('/api/scope', (_req, res) => {
+  res.json(api.getScope());
+});
+
 app.get('/api/files', (req, res) => {
   res.json(api.listFiles({
     type: api.readQuery(req.query, 'type'),

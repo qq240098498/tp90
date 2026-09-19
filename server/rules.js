@@ -80,7 +80,8 @@ function sortRules(list) {
   });
 }
 
-// 规则清单：按级别、状态、适用文件类型筛选，再按编码、名称或匹配写法搜索
+// 规则清单：按级别、状态、适用文件类型筛选，再按编码、名称或匹配写法搜索；
+// 每条规则一并带出它落在哪些规则集里，页面不用再逐条对照
 function listRules(options) {
   const input = options && typeof options === 'object' ? options : {};
   const level = pickText(input.level);
@@ -99,9 +100,18 @@ function listRules(options) {
       || item.pattern.toLowerCase().includes(keyword));
   }
 
+  const setsByRule = new Map();
+  data.ruleSets.forEach((set) => {
+    set.ruleIds.forEach((ruleId) => {
+      if (!setsByRule.has(ruleId)) setsByRule.set(ruleId, []);
+      setsByRule.get(ruleId).push({ id: set.id, code: set.code, name: set.name });
+    });
+  });
+  setsByRule.forEach((sets) => sets.sort((a, b) => (a.code < b.code ? -1 : 1)));
+
   const usedFileTypes = Array.from(new Set(data.rules.map((item) => item.fileType)));
   return {
-    rules: sortRules(list),
+    rules: sortRules(list).map((item) => ({ ...item, ruleSets: setsByRule.get(item.id) || [] })),
     levels: LEVELS.slice(),
     statuses: STATUSES.slice(),
     fileTypes: FILE_TYPES.slice(),

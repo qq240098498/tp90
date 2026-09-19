@@ -3,6 +3,8 @@
 const state = {
   rules: [],
   files: [],
+  ruleSets: [],
+  scope: null,
   levels: [],
   statuses: [],
   fileTypes: [],
@@ -11,6 +13,7 @@ const state = {
   ruleFileTypes: [],
   editingRuleId: '',
   editingFileId: '',
+  editingSetId: '',
   lastScan: null,
 };
 
@@ -145,6 +148,22 @@ async function loadFiles() {
   renderScanFileOptions();
 }
 
+async function loadRuleSets() {
+  const params = new URLSearchParams();
+  const keyword = el('set-filter-keyword').value.trim();
+  if (keyword) params.set('keyword', keyword);
+  const query = params.toString();
+  const payload = await request(`/api/rule-sets${query ? `?${query}` : ''}`);
+  state.ruleSets = payload.ruleSets || [];
+  renderRuleSets();
+}
+
+async function loadScope() {
+  const payload = await request('/api/scope');
+  state.scope = payload;
+  renderScope(payload);
+}
+
 function renderRuleFilters() {
   const levelSelect = el('rule-filter-level');
   const levelCurrent = levelSelect.value;
@@ -218,6 +237,9 @@ function renderRules() {
       <td><span class="tag ${levelClass(item.level)}">${escapeHtml(item.level)}</span></td>
       <td>${escapeHtml(item.status)}</td>
       <td>${escapeHtml(item.fileType)}</td>
+      <td class="wrap">${item.ruleSets && item.ruleSets.length
+        ? item.ruleSets.map((set) => `<span class="chip mono">${escapeHtml(set.code)}</span>`).join('')
+        : '<span class="dim">未归组</span>'}</td>
       <td class="mono">${escapeHtml(item.pattern)}</td>
       <td class="note-cell">${escapeHtml(item.note)}</td>
       <td class="mono">${escapeHtml(formatTime(item.updatedAt))}</td>
@@ -227,6 +249,25 @@ function renderRules() {
       </td>
     </tr>`).join('');
   el('rule-empty').classList.toggle('hidden', state.rules.length > 0);
+}
+
+function renderRuleSets() {
+  const body = el('set-body');
+  body.innerHTML = state.ruleSets.map((item) => `<tr>
+      <td class="mono">${escapeHtml(item.code)}</td>
+      <td>${escapeHtml(item.name)}</td>
+      <td class="wrap">${item.dirPrefixes.map((prefix) => `<span class="chip mono">${escapeHtml(prefix)}/</span>`).join('')}</td>
+      <td class="wrap">${item.rules.length
+        ? item.rules.map((rule) => `<span class="chip mono" title="${escapeHtml(rule.name)}">${escapeHtml(rule.code)}</span>`).join('')
+        : '<span class="dim">还没有成员</span>'}</td>
+      <td class="note-cell">${escapeHtml(item.note)}</td>
+      <td class="mono">${escapeHtml(formatTime(item.updatedAt))}</td>
+      <td class="actions">
+        <button type="button" class="link" data-set-edit="${escapeHtml(item.id)}">编辑</button>
+        <button type="button" class="link danger" data-set-delete="${escapeHtml(item.id)}">删除</button>
+      </td>
+    </tr>`).join('');
+  el('set-empty').classList.toggle('hidden', state.ruleSets.length > 0);
 }
 
 function renderFiles() {
@@ -244,6 +285,102 @@ function renderFiles() {
       </td>
     </tr>`).join('');
   el('file-empty').classList.toggle('hidden', state.files.length > 0);
+}
+
+function dirLabel(dir) {
+  return dir ? `${dir}/` : '（根目录）';
+}
+
+function setLabel(set) {
+  return `${set.code} ${set.name}`;
+}
+
+// 目录生效一览：每个目录一块，写清覆盖它的规则集与生效的规则
+function renderScope(scope) {
+  const dirsBox = el('scope-dirs');
+  dirsBox.innerHTML = scope.directories.map((dir) => {
+    const setsText = dir.sets.map((set) => `<span class="chip mono" title="${escapeHtml(set.name)}">${escapeHtml(set.code)}</span>`).join('');
+    const rows = dir.rules.map((rule) => `<tr>
+        <td class="mono">${escapeHtml(rule.code)}</td>
+        <td>${escapeHtml(rule.name)}</td>
+        <td><span class="tag ${levelClass(rule.level)}">${escapeHtml(rule.level)}</span></td>
+        <td>${escapeHtml(rule.status)}</td>
+        <td>${escapeHtml(rule.fileType)}</td>
+        <td class="mono">${escapeHtml(rule.pattern)}</td>
+        <td class="wrap">${rule.fromSets.map((set) => `<span class="chip mono" title="${escapeHtml(set.name)}">${escapeHtml(set.code)}</span>`).join('')}</td>
+      </tr>`).join('');
+    const table = rows
+      ? `<div class="table-wrap"><table class="grid dir-grid">
+          <thead><tr><th>编码</th><th>名称</th><th>级别</th><th>状态</th><th>适用类型</th><th>匹配写法</th><th>来自规则集</th></tr></thead>
+          <tbody>${rows}</tbody>
+        </table></div>`
+      : '<p class="empty-tip">覆盖它的规则集里还没有成员规则，这个目录暂时没有生效的规则</p>';
+    return `<div class="dir-block">
+      <div class="dir-head">
+        <span class="mono dir-name">${escapeHtml(dirLabel(dir.dir))}</span>
+        <span class="dir-meta">${dir.fileCount} 个文件　覆盖规则集：${setsText}</span>
+      </div>
+      ${table}
+    </div>`;
+  }).join('');
+  el('scope-dirs-empty').classList.toggle('hidden', scope.directories.length > 0);
+
+  const uncoveredBox = el('scope-uncovered');
+  uncoveredBox.innerHTML = scope.uncoveredDirectories.length
+    ? scope.uncoveredDirectories.map((dir) => `<span class="chip mono">${escapeHtml(dirLabel(dir.dir))}（${dir.fileCount} 个文件）</span>`).join('')
+    : '<span class="dim">所有目录都有规则集覆盖</span>';
+
+  const ungroupedBox = el('scope-ungrouped');
+  ungroupedBox.innerHTML = scope.ungroupedRules.length
+    ? scope.ungroupedRules.map((rule) => `<span class="chip" title="${escapeHtml(rule.name)}"><span class="mono">${escapeHtml(rule.code)}</span> ${escapeHtml(rule.name)}（${escapeHtml(rule.status)}）</span>`).join('')
+    : '<span class="dim">规则都已归到规则集里</span>';
+
+  renderConflicts(scope.conflicts);
+}
+
+// 范围冲突判断：三类重叠各列各的，每条都写清是谁、重叠在哪一段、谁主谁次
+function renderConflicts(conflicts) {
+  const multiBox = el('conflict-rule-sets');
+  multiBox.innerHTML = conflicts.ruleInMultipleSets.length
+    ? conflicts.ruleInMultipleSets.map((entry) => `<div class="conflict-item">
+        <div>规则 <strong class="mono">${escapeHtml(entry.rule.code)}</strong>「${escapeHtml(entry.rule.name)}」同时在
+          <strong class="mono">${escapeHtml(entry.sets[0].code)}</strong>「${escapeHtml(entry.sets[0].name)}」与
+          <strong class="mono">${escapeHtml(entry.sets[1].code)}</strong>「${escapeHtml(entry.sets[1].name)}」里，两个规则集的目录范围有重叠：</div>
+        <ul>${entry.overlaps.map((overlap) => `<li>重叠段 <code>${escapeHtml(overlap.segment)}/</code>：以
+          <strong class="mono">${escapeHtml(overlap.primary.code)}</strong> 为主、${escapeHtml(overlap.secondary.code)} 为次（${escapeHtml(overlap.reason)}）</li>`).join('')}</ul>
+      </div>`).join('')
+    : '<p class="empty-tip">没有这类重叠</p>';
+
+  const sameTextBox = el('conflict-same-text');
+  sameTextBox.innerHTML = conflicts.sameTextDifferentLevel.length
+    ? conflicts.sameTextDifferentLevel.map((entry) => `<div class="conflict-item">
+        <div>目录 <code>${escapeHtml(dirLabel(entry.dir))}</code>：<strong class="mono">${escapeHtml(entry.primary.code)}</strong>「${escapeHtml(entry.primary.name)}」（${escapeHtml(entry.primary.level)}）与
+          <strong class="mono">${escapeHtml(entry.secondary.code)}</strong>「${escapeHtml(entry.secondary.name)}」（${escapeHtml(entry.secondary.level)}）的匹配写法指向同一段文字
+          <code>${escapeHtml(entry.sharedText)}</code></div>
+        <div class="verdict">以 <strong class="mono">${escapeHtml(entry.primary.code)}</strong>（${escapeHtml(entry.primary.level)}）为主，${escapeHtml(entry.secondary.code)}（${escapeHtml(entry.secondary.level)}）为次（级别高的为主）</div>
+      </div>`).join('')
+    : '<p class="empty-tip">没有这类重叠</p>';
+
+  const containsBox = el('conflict-contains');
+  containsBox.innerHTML = conflicts.setScopeContains.length
+    ? conflicts.setScopeContains.map((entry) => {
+      if (entry.kind === 'same') {
+        const prefixes = entry.sets[0].dirPrefixes.map((prefix) => `<code>${escapeHtml(prefix)}/</code>`).join('、');
+        return `<div class="conflict-item">
+          <div><strong class="mono">${escapeHtml(entry.sets[0].code)}</strong>「${escapeHtml(entry.sets[0].name)}」与
+            <strong class="mono">${escapeHtml(entry.sets[1].code)}</strong>「${escapeHtml(entry.sets[1].name)}」的目录范围完全相同（${prefixes}）</div>
+          <div class="verdict">以 <strong class="mono">${escapeHtml(entry.primary.code)}</strong> 为主，${escapeHtml(entry.secondary.code)} 为次（${escapeHtml(entry.reason)}）</div>
+        </div>`;
+      }
+      const containerPrefixes = entry.container.dirPrefixes.map((prefix) => `<code>${escapeHtml(prefix)}/</code>`).join('、');
+      const containedPrefixes = entry.contained.dirPrefixes.map((prefix) => `<code>${escapeHtml(prefix)}/</code>`).join('、');
+      return `<div class="conflict-item">
+        <div><strong class="mono">${escapeHtml(entry.container.code)}</strong>「${escapeHtml(entry.container.name)}」的目录范围（${containerPrefixes}）把
+          <strong class="mono">${escapeHtml(entry.contained.code)}</strong>「${escapeHtml(entry.contained.name)}」的范围（${containedPrefixes}）整个包住</div>
+        <div class="verdict">在 ${escapeHtml(entry.contained.code)} 的范围内以 <strong class="mono">${escapeHtml(entry.primary.code)}</strong> 为主，${escapeHtml(entry.secondary.code)} 为次（${escapeHtml(entry.reason)}）</div>
+      </div>`;
+    }).join('')
+    : '<p class="empty-tip">没有这类重叠</p>';
 }
 
 function openRuleForm(rule) {
@@ -282,6 +419,75 @@ function closeFileForm() {
   clearFieldMarks();
 }
 
+// 成员挑选要列出全部规则，不能受规则区筛选条件影响，所以单独拉一份未筛选的
+async function openSetForm(set) {
+  clearNotice();
+  try {
+    const payload = await request('/api/rules');
+    state.allRulesForPicker = payload.rules || [];
+  } catch (err) {
+    notify(err.message, 'error');
+    return;
+  }
+  state.editingSetId = set ? set.id : '';
+  el('set-form-title').textContent = set ? `编辑规则集：${set.code}` : '新建规则集';
+  el('set-code').value = set ? set.code : '';
+  el('set-name').value = set ? set.name : '';
+  el('set-prefixes').value = set ? set.dirPrefixes.join('\n') : '';
+  el('set-note').value = set ? set.note : '';
+  renderSetRulePicker(set ? set.ruleIds : []);
+  el('set-form').classList.remove('hidden');
+  el('set-code').focus();
+}
+
+function closeSetForm() {
+  state.editingSetId = '';
+  el('set-form').classList.add('hidden');
+  clearFieldMarks();
+}
+
+function renderSetRulePicker(selectedIds) {
+  const selected = new Set(selectedIds || []);
+  const box = el('set-rules');
+  const rules = state.allRulesForPicker || [];
+  box.innerHTML = rules.length
+    ? rules.map((rule) => `<label class="picker-item">
+        <input type="checkbox" value="${escapeHtml(rule.id)}" ${selected.has(rule.id) ? 'checked' : ''}>
+        <span class="mono">${escapeHtml(rule.code)}</span> ${escapeHtml(rule.name)}（${escapeHtml(rule.status)}）
+      </label>`).join('')
+    : '<span class="dim">还没有规则可挑，请先到规则区新建</span>';
+}
+
+async function submitSet(event) {
+  event.preventDefault();
+  clearNotice();
+  clearFieldMarks();
+  const payload = {
+    code: el('set-code').value,
+    name: el('set-name').value,
+    dirPrefixes: el('set-prefixes').value.split('\n').map((line) => line.trim()).filter(Boolean),
+    ruleIds: Array.from(el('set-rules').querySelectorAll('input[type="checkbox"]:checked')).map((input) => input.value),
+    note: el('set-note').value,
+  };
+  const editing = state.editingSetId;
+  try {
+    if (editing) {
+      await request(`/api/rule-sets/${encodeURIComponent(editing)}`, { method: 'PATCH', body: JSON.stringify(payload) });
+      notify('规则集已保存', 'ok');
+    } else {
+      await request('/api/rule-sets', { method: 'POST', body: JSON.stringify(payload) });
+      notify('规则集已新增', 'ok');
+    }
+    closeSetForm();
+    await loadRuleSets();
+    await loadRules();
+    await loadScope();
+  } catch (err) {
+    notify(err.message, 'error');
+    markField(err.field);
+  }
+}
+
 async function showFileContent(id) {
   clearNotice();
   try {
@@ -318,6 +524,8 @@ async function submitRule(event) {
     }
     closeRuleForm();
     await loadRules();
+    await loadRuleSets();
+    await loadScope();
   } catch (err) {
     notify(err.message, 'error');
     markField(err.field);
@@ -344,6 +552,7 @@ async function submitFile(event) {
     }
     closeFileForm();
     await loadFiles();
+    await loadScope();
   } catch (err) {
     notify(err.message, 'error');
     markField(err.field);
@@ -422,12 +631,37 @@ document.addEventListener('click', async (event) => {
   if (node.dataset.ruleDelete) {
     clearNotice();
     const found = state.rules.find((item) => item.id === node.dataset.ruleDelete);
-    if (!window.confirm(`确定删除规则 ${found ? found.code : ''} 吗？`)) return;
+    if (!window.confirm(`确定删除规则 ${found ? found.code : ''} 吗？它会同时从所有规则集里摘掉。`)) return;
     try {
       await request(`/api/rules/${encodeURIComponent(node.dataset.ruleDelete)}`, { method: 'DELETE' });
       if (state.editingRuleId === node.dataset.ruleDelete) closeRuleForm();
       notify('规则已删除', 'ok');
       await loadRules();
+      await loadRuleSets();
+      await loadScope();
+    } catch (err) {
+      notify(err.message, 'error');
+    }
+    return;
+  }
+
+  if (node.dataset.setEdit) {
+    const found = state.ruleSets.find((item) => item.id === node.dataset.setEdit);
+    if (found) await openSetForm(found);
+    return;
+  }
+
+  if (node.dataset.setDelete) {
+    clearNotice();
+    const found = state.ruleSets.find((item) => item.id === node.dataset.setDelete);
+    if (!window.confirm(`确定删除规则集 ${found ? found.code : ''} 吗？规则本身会保留。`)) return;
+    try {
+      await request(`/api/rule-sets/${encodeURIComponent(node.dataset.setDelete)}`, { method: 'DELETE' });
+      if (state.editingSetId === node.dataset.setDelete) closeSetForm();
+      notify('规则集已删除', 'ok');
+      await loadRuleSets();
+      await loadRules();
+      await loadScope();
     } catch (err) {
       notify(err.message, 'error');
     }
@@ -460,6 +694,7 @@ document.addEventListener('click', async (event) => {
       el('file-preview').classList.add('hidden');
       notify('文件已移出清单', 'ok');
       await loadFiles();
+      await loadScope();
     } catch (err) {
       notify(err.message, 'error');
     }
@@ -468,11 +703,14 @@ document.addEventListener('click', async (event) => {
 
 el('rule-form').addEventListener('submit', submitRule);
 el('file-form').addEventListener('submit', submitFile);
+el('set-form').addEventListener('submit', submitSet);
 el('rule-new').addEventListener('click', () => {
   clearNotice();
   openRuleForm(null);
 });
 el('rule-cancel').addEventListener('click', closeRuleForm);
+el('set-new').addEventListener('click', () => openSetForm(null));
+el('set-cancel').addEventListener('click', closeSetForm);
 el('file-new').addEventListener('click', () => {
   clearNotice();
   openFileForm(null);
@@ -493,7 +731,21 @@ el('rule-refresh').addEventListener('click', () => {
   clearNotice();
   loadRules()
     .then(loadFiles)
+    .then(loadRuleSets)
+    .then(loadScope)
     .catch((err) => notify(err.message, 'error'));
+});
+el('set-filter-apply').addEventListener('click', () => {
+  clearNotice();
+  loadRuleSets().catch((err) => notify(err.message, 'error'));
+});
+el('set-filter-reset').addEventListener('click', () => {
+  el('set-filter-keyword').value = '';
+  loadRuleSets().catch((err) => notify(err.message, 'error'));
+});
+el('scope-refresh').addEventListener('click', () => {
+  clearNotice();
+  loadScope().catch((err) => notify(err.message, 'error'));
 });
 el('file-filter-apply').addEventListener('click', () => {
   clearNotice();
@@ -515,9 +767,11 @@ el('operator').addEventListener('change', () => {
   window.localStorage.setItem(OPERATOR_KEY, currentOperator());
 });
 
-// 页面打开时先把规则与文件都拉一遍，扫描的范围下拉依赖这两份清单
+// 页面打开时先把规则、文件、规则集与目录范围都拉一遍，扫描的范围下拉依赖前两份清单
 restoreOperator();
 loadHealth();
 loadRules()
   .then(loadFiles)
+  .then(loadRuleSets)
+  .then(loadScope)
   .catch((err) => notify(err.message, 'error'));

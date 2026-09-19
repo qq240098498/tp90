@@ -46,6 +46,7 @@
               <th>级别</th>
               <th>状态</th>
               <th>适用文件类型</th>
+              <th>所在规则集</th>
               <th>匹配写法</th>
               <th>说明</th>
               <th>更新时间</th>
@@ -79,6 +80,53 @@
         <div class="form-actions">
           <button type="submit">保存</button>
           <button type="button" id="rule-cancel" class="ghost">取消</button>
+        </div>
+      </form>
+    </section>
+
+    <section class="panel">
+      <div class="panel-head">
+        <h2>规则集</h2>
+        <div class="filters">
+          <input id="set-filter-keyword" placeholder="搜索编码、名称、目录前缀" maxlength="40">
+          <button type="button" id="set-filter-apply">筛选</button>
+          <button type="button" id="set-filter-reset" class="ghost">重置</button>
+          <button type="button" id="set-new">新建规则集</button>
+        </div>
+      </div>
+      <div class="table-wrap">
+        <table class="grid">
+          <thead>
+            <tr>
+              <th>编码</th>
+              <th>名称</th>
+              <th>目录前缀</th>
+              <th>成员规则</th>
+              <th>说明</th>
+              <th>更新时间</th>
+              <th>操作</th>
+            </tr>
+          </thead>
+          <tbody id="set-body"></tbody>
+        </table>
+      </div>
+      <p class="empty-tip hidden" id="set-empty">还没有规则集，点右上角新建一个，把规则按目录归拢起来</p>
+
+      <form class="entry-form hidden" id="set-form" autocomplete="off">
+        <h3 id="set-form-title">新建规则集</h3>
+        <div class="form-row">
+          <label data-field="setCode">规则集编码<input id="set-code" placeholder="例如 SET-005" maxlength="20"></label>
+          <label data-field="setName">规则集名称<input id="set-name" placeholder="例如 移动端检查" maxlength="40"></label>
+        </div>
+        <label class="full" data-field="setPrefixes">目录前缀（每行一个，盖住的目录含更深层）<textarea id="set-prefixes" rows="3" placeholder="src/web&#10;scripts"></textarea></label>
+        <div class="picker-wrap" data-field="setRules">
+          <span class="picker-title">成员规则（从现有规则里挑，一条规则可以进多个集子）</span>
+          <div class="member-picker" id="set-rules"></div>
+        </div>
+        <label class="full" data-field="setNote">说明<input id="set-note" placeholder="这个规则集管哪片、为什么这样划" maxlength="200"></label>
+        <div class="form-actions">
+          <button type="submit">保存</button>
+          <button type="button" id="set-cancel" class="ghost">取消</button>
         </div>
       </form>
     </section>
@@ -124,6 +172,35 @@
           <button type="button" id="file-cancel" class="ghost">取消</button>
         </div>
       </form>
+    </section>
+
+    <section class="panel">
+      <div class="panel-head">
+        <h2>目录生效一览</h2>
+        <div class="filters">
+          <button type="button" id="scope-refresh" class="ghost">刷新</button>
+        </div>
+      </div>
+      <p class="scan-meta">按收录文件的路径归出目录，逐个目录看哪些规则管得到它、每条来自哪个规则集</p>
+      <div id="scope-dirs"></div>
+      <p class="empty-tip hidden" id="scope-dirs-empty">还没有目录被任何规则集覆盖</p>
+      <h3 class="sub-head">没被任何规则集覆盖到的目录</h3>
+      <div id="scope-uncovered"></div>
+      <h3 class="sub-head">不在任何规则集里的规则</h3>
+      <div id="scope-ungrouped"></div>
+    </section>
+
+    <section class="panel">
+      <div class="panel-head">
+        <h2>范围冲突判断</h2>
+      </div>
+      <p class="scan-meta">规则集之间的范围撞上时，这里列清是哪几条、重叠在哪一段，并给出主次关系</p>
+      <h3 class="sub-head">同一条规则落在多个规则集里，且目录范围有重叠</h3>
+      <div id="conflict-rule-sets"></div>
+      <h3 class="sub-head">同一个目录下，两条规则的匹配写法指向同一段文字但级别不同</h3>
+      <div id="conflict-same-text"></div>
+      <h3 class="sub-head">一个规则集的目录范围把另一个整个包住</h3>
+      <div id="conflict-contains"></div>
     </section>
 
     <section class="panel">

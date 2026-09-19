@@ -143,6 +143,18 @@
       "note": "",
       "createdAt": "2026-09-02T02:00:00.000Z",
       "updatedAt": "2026-09-02T02:00:00.000Z"
+    },
+    {
+      "id": "rule-1013",
+      "code": "CODE-013",
+      "name": "口令字样要收口",
+      "level": "警告",
+      "status": "启用",
+      "fileType": "全部",
+      "pattern": "password",
+      "note": "出现口令字样就要再看一眼",
+      "createdAt": "2026-09-02T02:00:00.000Z",
+      "updatedAt": "2026-09-02T02:00:00.000Z"
     }
   ],
   "files": [
@@ -253,6 +265,79 @@
       "note": "部署描述",
       "createdAt": "2026-09-02T03:00:00.000Z",
       "updatedAt": "2026-09-02T03:00:00.000Z"
+    }
+  ],
+  "ruleSets": [
+    {
+      "id": "set-3001",
+      "code": "SET-001",
+      "name": "前端页面检查",
+      "dirPrefixes": [
+        "src/web"
+      ],
+      "ruleIds": [
+        "rule-1001",
+        "rule-1002",
+        "rule-1003",
+        "rule-1006"
+      ],
+      "note": "页面代码的几条老规矩",
+      "createdAt": "2026-09-02T04:00:00.000Z",
+      "updatedAt": "2026-09-02T04:00:00.000Z"
+    },
+    {
+      "id": "set-3002",
+      "code": "SET-002",
+      "name": "服务端检查",
+      "dirPrefixes": [
+        "src/server",
+        "src/config"
+      ],
+      "ruleIds": [
+        "rule-1001",
+        "rule-1002",
+        "rule-1004",
+        "rule-1005",
+        "rule-1008",
+        "rule-1009",
+        "rule-1013"
+      ],
+      "note": "",
+      "createdAt": "2026-09-02T04:00:00.000Z",
+      "updatedAt": "2026-09-02T04:00:00.000Z"
+    },
+    {
+      "id": "set-3003",
+      "code": "SET-003",
+      "name": "全仓通用",
+      "dirPrefixes": [
+        "src"
+      ],
+      "ruleIds": [
+        "rule-1003",
+        "rule-1004",
+        "rule-1010"
+      ],
+      "note": "src 底下都按这几条来",
+      "createdAt": "2026-09-02T04:00:00.000Z",
+      "updatedAt": "2026-09-02T04:00:00.000Z"
+    },
+    {
+      "id": "set-3004",
+      "code": "SET-004",
+      "name": "脚本与文档",
+      "dirPrefixes": [
+        "scripts",
+        "docs"
+      ],
+      "ruleIds": [
+        "rule-1003",
+        "rule-1011",
+        "rule-1012"
+      ],
+      "note": "",
+      "createdAt": "2026-09-02T04:00:00.000Z",
+      "updatedAt": "2026-09-02T04:00:00.000Z"
     }
   ]
 }
