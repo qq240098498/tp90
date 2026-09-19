@@ -143,6 +143,18 @@
       "note": "",
       "createdAt": "2026-09-02T02:00:00.000Z",
       "updatedAt": "2026-09-02T02:00:00.000Z"
+    },
+    {
+      "id": "rule-1013",
+      "code": "CODE-013",
+      "name": "口令字样要收口到统一配置",
+      "level": "提示",
+      "status": "启用",
+      "fileType": "全部",
+      "pattern": "password",
+      "note": "先提示收口，和 CODE-005 配合",
+      "createdAt": "2026-09-02T02:00:00.000Z",
+      "updatedAt": "2026-09-02T02:00:00.000Z"
     }
   ],
   "files": [
@@ -253,6 +265,77 @@
       "note": "部署描述",
       "createdAt": "2026-09-02T03:00:00.000Z",
       "updatedAt": "2026-09-02T03:00:00.000Z"
+    }
+  ],
+  "ruleSets": [
+    {
+      "id": "set-3001",
+      "name": "全库底线",
+      "prefixes": [
+        "src",
+        "scripts",
+        "docs"
+      ],
+      "ruleIds": [
+        "rule-1003",
+        "rule-1004",
+        "rule-1005",
+        "rule-1008",
+        "rule-1010",
+        "rule-1013"
+      ],
+      "note": "所有目录都要守住的底线写法",
+      "createdAt": "2026-09-02T04:00:00.000Z",
+      "updatedAt": "2026-09-02T04:00:00.000Z"
+    },
+    {
+      "id": "set-3002",
+      "name": "服务端规范",
+      "prefixes": [
+        "src/server",
+        "src/config"
+      ],
+      "ruleIds": [
+        "rule-1001",
+        "rule-1002",
+        "rule-1005",
+        "rule-1006",
+        "rule-1009"
+      ],
+      "note": "服务端与配置目录的 js 约定",
+      "createdAt": "2026-09-02T04:10:00.000Z",
+      "updatedAt": "2026-09-02T04:10:00.000Z"
+    },
+    {
+      "id": "set-3003",
+      "name": "前端与脚本",
+      "prefixes": [
+        "src/web",
+        "scripts"
+      ],
+      "ruleIds": [
+        "rule-1001",
+        "rule-1002",
+        "rule-1007",
+        "rule-1011"
+      ],
+      "note": "页面代码与部署脚本的约定",
+      "createdAt": "2026-09-02T04:20:00.000Z",
+      "updatedAt": "2026-09-02T04:20:00.000Z"
+    },
+    {
+      "id": "set-3004",
+      "name": "文档约定",
+      "prefixes": [
+        "docs"
+      ],
+      "ruleIds": [
+        "rule-1003",
+        "rule-1012"
+      ],
+      "note": "文档目录的写法约定",
+      "createdAt": "2026-09-02T04:30:00.000Z",
+      "updatedAt": "2026-09-02T04:30:00.000Z"
     }
   ]
 }

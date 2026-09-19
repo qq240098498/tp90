@@ -14,9 +14,13 @@ const MAX_PATTERN_LENGTH = 60;
 const MAX_NOTE_LENGTH = 200;
 const MAX_PATH_LENGTH = 120;
 const MAX_CONTENT_LENGTH = 4000;
+const MAX_SET_NAME_LENGTH = 40;
+const MAX_PREFIX_LENGTH = 120;
+const MAX_PREFIXES_PER_SET = 20;
 
-// 检查规则的初始数据。十二条规则里有两条是停用的，
-// 有一条启用的规则在现有文件里一条命中都没有，用来观察从未命中的规则
+// 检查规则的初始数据。十三条规则里有两条是停用的，
+// 有一条启用的规则在现有文件里一条命中都没有，用来观察从未命中的规则；
+// CODE-013 的写法把 CODE-005 的写法包在里面，用来观察同目录下写法重叠、级别不同的冲突
 function seedRules() {
   const at = '2026-09-02T02:00:00.000Z';
   return [
@@ -32,6 +36,50 @@ function seedRules() {
     { id: 'rule-1010', code: 'CODE-010', name: '遗留注释要清理', level: '提示', status: '停用', fileType: '全部', pattern: 'FIXME', note: '', createdAt: at, updatedAt: at },
     { id: 'rule-1011', code: 'CODE-011', name: '脚本里禁止直接用强制删除', level: '警告', status: '启用', fileType: 'sh', pattern: 'rm -rf', note: '脚本里改用受控的清理命令', createdAt: at, updatedAt: at },
     { id: 'rule-1012', code: 'CODE-012', name: '文档里的临时占位要删掉', level: '提示', status: '启用', fileType: 'md', pattern: '待补', note: '', createdAt: at, updatedAt: at },
+    { id: 'rule-1013', code: 'CODE-013', name: '口令字样要收口到统一配置', level: '提示', status: '启用', fileType: '全部', pattern: 'password', note: '先提示收口，和 CODE-005 配合', createdAt: at, updatedAt: at },
+  ];
+}
+
+// 规则集的初始数据。四个集的范围故意有重叠与包含关系，
+// 用来观察规则重复落集、范围整个包住这两类冲突的判断
+function seedRuleSets() {
+  return [
+    {
+      id: 'set-3001',
+      name: '全库底线',
+      prefixes: ['src', 'scripts', 'docs'],
+      ruleIds: ['rule-1003', 'rule-1004', 'rule-1005', 'rule-1008', 'rule-1010', 'rule-1013'],
+      note: '所有目录都要守住的底线写法',
+      createdAt: '2026-09-02T04:00:00.000Z',
+      updatedAt: '2026-09-02T04:00:00.000Z',
+    },
+    {
+      id: 'set-3002',
+      name: '服务端规范',
+      prefixes: ['src/server', 'src/config'],
+      ruleIds: ['rule-1001', 'rule-1002', 'rule-1005', 'rule-1006', 'rule-1009'],
+      note: '服务端与配置目录的 js 约定',
+      createdAt: '2026-09-02T04:10:00.000Z',
+      updatedAt: '2026-09-02T04:10:00.000Z',
+    },
+    {
+      id: 'set-3003',
+      name: '前端与脚本',
+      prefixes: ['src/web', 'scripts'],
+      ruleIds: ['rule-1001', 'rule-1002', 'rule-1007', 'rule-1011'],
+      note: '页面代码与部署脚本的约定',
+      createdAt: '2026-09-02T04:20:00.000Z',
+      updatedAt: '2026-09-02T04:20:00.000Z',
+    },
+    {
+      id: 'set-3004',
+      name: '文档约定',
+      prefixes: ['docs'],
+      ruleIds: ['rule-1003', 'rule-1012'],
+      note: '文档目录的写法约定',
+      createdAt: '2026-09-02T04:30:00.000Z',
+      updatedAt: '2026-09-02T04:30:00.000Z',
+    },
   ];
 }
 
@@ -335,10 +383,45 @@ function normalizeFile(item, fallbackIndex) {
   };
 }
 
-// 整份数据保证规则与文件结构一致，缺编号、缺名称、缺路径的条目一律丢掉
+// 把单个规则集整理成固定结构，成员只保留还真在清单里的规则编号
+function normalizeRuleSet(item, fallbackIndex, validRuleIds) {
+  const source = item && typeof item === 'object' ? item : {};
+  const createdAt = typeof source.createdAt === 'string' && source.createdAt ? source.createdAt : new Date().toISOString();
+  const rawPrefixes = Array.isArray(source.prefixes) ? source.prefixes : [];
+  const seenPrefixes = new Set();
+  const prefixes = [];
+  rawPrefixes.forEach((value) => {
+    if (typeof value !== 'string') return;
+    const prefix = value.trim();
+    if (!prefix) return;
+    const lower = prefix.toLowerCase();
+    if (seenPrefixes.has(lower)) return;
+    seenPrefixes.add(lower);
+    prefixes.push(prefix);
+  });
+  const rawRuleIds = Array.isArray(source.ruleIds) ? source.ruleIds : [];
+  const seenRuleIds = new Set();
+  const ruleIds = [];
+  rawRuleIds.forEach((ruleId) => {
+    if (typeof ruleId !== 'string' || !validRuleIds.has(ruleId) || seenRuleIds.has(ruleId)) return;
+    seenRuleIds.add(ruleId);
+    ruleIds.push(ruleId);
+  });
+  return {
+    id: typeof source.id === 'string' && source.id ? source.id : `set-restored-${fallbackIndex + 1}`,
+    name: typeof source.name === 'string' ? source.name.trim() : '',
+    prefixes,
+    ruleIds,
+    note: typeof source.note === 'string' ? source.note : '',
+    createdAt,
+    updatedAt: typeof source.updatedAt === 'string' && source.updatedAt ? source.updatedAt : createdAt,
+  };
+}
+
+// 整份数据保证规则、规则集与文件结构一致，缺编号、缺名称、缺路径的条目一律丢掉
 function normalize(raw) {
   const source = raw && typeof raw === 'object' ? raw : {};
-  const seed = { rules: seedRules(), files: seedFiles() };
+  const seed = { rules: seedRules(), files: seedFiles(), ruleSets: seedRuleSets() };
 
   const rawRules = Array.isArray(source.rules) ? source.rules : seed.rules;
   const seenRuleIds = new Set();
@@ -352,6 +435,20 @@ function normalize(raw) {
     seenRuleIds.add(rule.id);
     seenCodes.add(lower);
     rules.push(rule);
+  });
+
+  const rawSets = Array.isArray(source.ruleSets) ? source.ruleSets : seed.ruleSets;
+  const seenSetIds = new Set();
+  const seenSetNames = new Set();
+  const ruleSets = [];
+  rawSets.forEach((item, index) => {
+    const ruleSet = normalizeRuleSet(item, index, seenRuleIds);
+    if (!ruleSet.id || !ruleSet.name || ruleSet.prefixes.length === 0) return;
+    const lower = ruleSet.name.toLowerCase();
+    if (seenSetIds.has(ruleSet.id) || seenSetNames.has(lower)) return;
+    seenSetIds.add(ruleSet.id);
+    seenSetNames.add(lower);
+    ruleSets.push(ruleSet);
   });
 
   const rawFiles = Array.isArray(source.files) ? source.files : seed.files;
@@ -368,7 +465,7 @@ function normalize(raw) {
     files.push(file);
   });
 
-  return { rules, files };
+  return { rules, files, ruleSets };
 }
 
 // 读取数据文件：文件缺失或内容损坏时回落到初始数据并立刻补写
@@ -377,7 +474,7 @@ function load() {
     const raw = fs.readFileSync(DATA_FILE, 'utf8');
     return normalize(JSON.parse(raw));
   } catch (err) {
-    const data = { rules: seedRules(), files: seedFiles() };
+    const data = { rules: seedRules(), files: seedFiles(), ruleSets: seedRuleSets() };
     save(data);
     return data;
   }
@@ -396,9 +493,11 @@ module.exports = {
   save,
   seedRules,
   seedFiles,
+  seedRuleSets,
   normalize,
   normalizeRule,
   normalizeFile,
+  normalizeRuleSet,
   LEVELS,
   STATUSES,
   FILE_TYPES,
@@ -408,5 +507,8 @@ module.exports = {
   MAX_NOTE_LENGTH,
   MAX_PATH_LENGTH,
   MAX_CONTENT_LENGTH,
+  MAX_SET_NAME_LENGTH,
+  MAX_PREFIX_LENGTH,
+  MAX_PREFIXES_PER_SET,
   DATA_FILE,
 };

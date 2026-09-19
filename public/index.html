@@ -46,6 +46,7 @@
               <th>级别</th>
               <th>状态</th>
               <th>适用文件类型</th>
+              <th>规则集</th>
               <th>匹配写法</th>
               <th>说明</th>
               <th>更新时间</th>
@@ -81,6 +82,95 @@
           <button type="button" id="rule-cancel" class="ghost">取消</button>
         </div>
       </form>
+    </section>
+
+    <section class="panel">
+      <div class="panel-head">
+        <h2>规则集</h2>
+        <div class="filters">
+          <button type="button" id="set-refresh" class="ghost">刷新</button>
+          <button type="button" id="set-new">新建规则集</button>
+        </div>
+      </div>
+      <p class="panel-tip">把规则归进规则集，并写清每个规则集管哪些目录前缀；下面按目录算出来的生效规则与范围冲突都以这里为准</p>
+      <div class="table-wrap">
+        <table class="grid">
+          <thead>
+            <tr>
+              <th>规则集名称</th>
+              <th>目录前缀</th>
+              <th>成员规则</th>
+              <th>说明</th>
+              <th>更新时间</th>
+              <th>操作</th>
+            </tr>
+          </thead>
+          <tbody id="set-body"></tbody>
+        </table>
+      </div>
+      <p class="empty-tip hidden" id="set-empty">还没有规则集，点右上角新建一个</p>
+
+      <form class="entry-form hidden" id="set-form" autocomplete="off">
+        <h3 id="set-form-title">新建规则集</h3>
+        <div class="form-row">
+          <label data-field="setName">规则集名称<input id="set-name" placeholder="例如 服务端规范" maxlength="40"></label>
+          <label class="full" data-field="setPrefixes">目录前缀（每行一个）<textarea id="set-prefixes" rows="3" placeholder="例如：&#10;src/server&#10;src/config"></textarea></label>
+        </div>
+        <div data-field="setRules">
+          <span class="field-label">成员规则（勾选归进这个集的规则）</span>
+          <div class="rule-check-grid" id="set-rules"></div>
+        </div>
+        <label class="full" data-field="setNote">说明<input id="set-note" placeholder="这个规则集管哪一片、为什么这么划" maxlength="200"></label>
+        <div class="form-actions">
+          <button type="submit">保存</button>
+          <button type="button" id="set-cancel" class="ghost">取消</button>
+        </div>
+      </form>
+    </section>
+
+    <section class="panel">
+      <div class="panel-head">
+        <h2>按目录生效的规则</h2>
+        <div class="filters">
+          <button type="button" id="coverage-refresh" class="ghost">刷新</button>
+        </div>
+      </div>
+      <p class="scan-meta" id="coverage-meta">正在计算…</p>
+      <div class="table-wrap">
+        <table class="grid">
+          <thead>
+            <tr>
+              <th>目录</th>
+              <th>文件</th>
+              <th>覆盖的规则集</th>
+              <th>生效规则（每条来自哪个规则集）</th>
+            </tr>
+          </thead>
+          <tbody id="coverage-body"></tbody>
+        </table>
+      </div>
+      <p class="empty-tip hidden" id="coverage-empty">清单里还没有文件，算不出目录</p>
+      <div class="uncovered-box hidden" id="coverage-uncovered"></div>
+      <p class="panel-tip" id="coverage-ungrouped"></p>
+    </section>
+
+    <section class="panel">
+      <div class="panel-head">
+        <h2>范围冲突与主次</h2>
+      </div>
+      <p class="panel-tip">规则集的范围撞上时不各说各话：这里列清是哪几条、重叠在哪一段，并给出主次关系</p>
+      <div class="conflict-group">
+        <h3>同一条规则落在多个规则集里，且目录范围重叠<span class="count-badge" id="conflict-dup-count"></span></h3>
+        <div id="conflict-dup"></div>
+      </div>
+      <div class="conflict-group">
+        <h3>同一个目录下两条规则的写法指向同一段文字，但级别不同<span class="count-badge" id="conflict-pattern-count"></span></h3>
+        <div id="conflict-pattern"></div>
+      </div>
+      <div class="conflict-group">
+        <h3>一个规则集的范围把另一个规则集整个包住<span class="count-badge" id="conflict-contains-count"></span></h3>
+        <div id="conflict-contains"></div>
+      </div>
     </section>
 
     <section class="panel">
